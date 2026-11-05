@@ -1,5 +1,6 @@
 from os import getenv, path
 import re
+import subprocess
 
 app_name = 'ScreenTranslator'
 
@@ -30,6 +31,29 @@ os_name = getenv('OS', 'linux')
 app_version += {'linux': '', 'macos': '-experimental',
                 'win32': '', 'win64': ''}[os_name]
 bitness = '32' if os_name == 'win32' else '64'
-msvc_version = getenv('MSVC_VERSION', 'C:/Program Files (x86)/Microsoft Visual Studio/2019/Community')
+
+
+def _find_msvc():
+    default = 'C:/Program Files (x86)/Microsoft Visual Studio/2019/Community'
+    candidate = getenv('MSVC_VERSION', default)
+    if path.exists(candidate + '/VC/Auxiliary/Build/vcvars64.bat'):
+        return candidate
+    pf86 = getenv('ProgramFiles(x86)', 'C:/Program Files (x86)')
+    vswhere = pf86 + '/Microsoft Visual Studio/Installer/vswhere.exe'
+    if path.exists(vswhere):
+        try:
+            out = subprocess.run(
+                [vswhere, '-latest', '-products', '*', '-requires',
+                 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+                 '-property', 'installationPath'],
+                capture_output=True, text=True).stdout.strip()
+            if out:
+                return out.replace('\\', '/')
+        except Exception:
+            pass
+    return candidate
+
+
+msvc_version = _find_msvc()
 
 build_type = 'release' # 'debug'
